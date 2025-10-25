@@ -25,11 +25,13 @@ model Room {
   id        Int        @id @default(autoincrement())
   name      String
   status    RoomStatus @default(OPEN)
+  participants Int[]   @default([])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
 enum RoomStatus {
   OPEN
+  FULL
   CLOSED
 }

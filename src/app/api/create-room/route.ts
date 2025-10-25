@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { computeStatus } from '../_roomUtils';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const name = (body?.roomName as string) || 'Untitled Room';
+    const userId = Number(body?.userId);
 
-    const room = await prisma.room.create({
-      data: { name, status: 'OPEN' },
+    const participants = [userId];
+
+    const room = await (prisma as any).room.create({
+      data: { name, status: 'OPEN', participants },
     });
 
     return NextResponse.json({

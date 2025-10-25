@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAppContext } from "../context/AppContext";
 import JoinRoomPopup, { type RoomListItem } from "./JoinRoomPopup";
 import { buttonStyles as s } from "./styles/Buttons.styles";
+import { joinRoom } from "@/src/lib/socket";
+import { getUserId } from "@/src/lib/user";
 
 export default function JoinRoom() {
   const { setCurrentRoom } = useAppContext();
@@ -31,8 +33,38 @@ export default function JoinRoom() {
     try {
       const room = rooms.find((r) => r.id === roomId);
       if (!room) throw new Error("Selected room not found");
-      if (room.status !== "OPEN") throw new Error("Room is closed");
-      setCurrentRoom({ id: room.id, name: room.name || `Room ${room.id}` });
+      if (room.status !== "OPEN") throw new Error("Room is not open");
+
+      // Tell the server we're joining this room and persist participants.
+      const userId = getUserId();
+      const res = await fetch("/api/join-room", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: room.id, userId }),
+      });
+      if (!res.ok) throw new Error("Failed to join room");
+      const data = await res.json();
+      const updated = data?.room as {
+        id: number;
+        name: string;
+        participants?: number[];
+        status?: string;
+      };
+
+      // If server didn't include us (e.g., room already full), abort gracefully
+      if (
+        Array.isArray(updated?.participants) &&
+        !updated.participants.includes(userId)
+      ) {
+        throw new Error("Room is full");
+      }
+
+      setCurrentRoom({
+        id: updated.id,
+        name: updated.name || room.name || `Room ${room.id}`,
+      });
+      // Connect socket and join the signaling room for realtime
+      joinRoom(updated.id);
       setShowPopup(false);
     } catch (error) {
       console.error("Error joining room:", error);

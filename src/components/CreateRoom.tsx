@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useAppContext } from "../context/AppContext";
 import SettingsPopup from "./SettingsPopup";
 import { buttonStyles as s } from "./styles/Buttons.styles";
+import { joinRoom } from "@/src/lib/socket";
+import { getUserId } from "@/src/lib/user";
 
 export default function CreateRoom() {
   const { setCurrentRoom } = useAppContext();
@@ -22,7 +24,7 @@ export default function CreateRoom() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(roomData),
+        body: JSON.stringify({ ...roomData, userId: getUserId() }),
       });
 
       if (!response.ok) {
@@ -31,10 +33,12 @@ export default function CreateRoom() {
 
       const data = await response.json();
 
-      setCurrentRoom({
-        id: data.roomId,
-        name: data.roomName || `Room ${data.roomId}`,
-      });
+      const room = {
+        id: data.roomId as number,
+        name: (data.roomName as string) || `Room ${data.roomId}`,
+      };
+      setCurrentRoom(room);
+      joinRoom(room.id);
 
       setShowPopup(false);
     } catch (error) {
